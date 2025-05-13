@@ -1,10 +1,15 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import db
 from models.user import User
-from routes import user
+from routes import user, auth
 
-db.init()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.init()
+    yield
+    await db.close()
 
 app = FastAPI()
 
@@ -21,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(user.router)
+app.include_router(auth.router)
 
 @app.get("/")
 def read_root():
