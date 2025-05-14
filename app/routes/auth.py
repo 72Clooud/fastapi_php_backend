@@ -12,7 +12,7 @@ router = APIRouter(
     tags=['Auth']
 )
 
-@router.post("/login")
+@router.post("/login", status_code=status.HTTP_200_OK)
 def login(user_credentials: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_credentials.email).first()
     if not user:
