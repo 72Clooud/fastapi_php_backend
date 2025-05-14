@@ -5,11 +5,7 @@ from database.database import db
 from models.user import User
 from routes import user, auth
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await db.init()
-    yield
-    await db.close()
+db.init()
 
 app = FastAPI()
 

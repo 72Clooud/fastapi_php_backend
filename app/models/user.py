@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, text
+from sqlalchemy import Column, Integer, String, TIMESTAMP, text, Date
 from database.database import Base
 
 class User(Base):
@@ -8,4 +8,5 @@ class User(Base):
     id = Column(Integer, primary_key=True, nullable=False, index=True)
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False, unique=True)
+    date_of_birth = Column(Date, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('NOW()'))
