@@ -6,12 +6,13 @@ class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
-    date_of_birth: date
+    dateOfBirth: date
     
 class UserOut(BaseModel):
     id: int
+    name: str
     email: EmailStr
     created_at: datetime
-    date_of_birth: date
+    dateOfBirth: date
     class Config:
         from_attributes = True
