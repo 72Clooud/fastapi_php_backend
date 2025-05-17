@@ -1,9 +1,10 @@
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database.database import db
 from models.user import User
-from routes import user, auth
+from models.post import Post
+from models.favorites import Favorites
+from routes import user, auth, favorites
 
 db.init()
 
@@ -21,6 +22,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(favorites.router)
 app.include_router(user.router)
 app.include_router(auth.router)
 

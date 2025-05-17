@@ -12,7 +12,7 @@ class TokenOut(Token):
     email: EmailStr
     dateOfBirth: date
 
-class TokenData(Token):
+class TokenData(BaseModel):
     id: Optional[int] = None
 
 class LoginRequest(BaseModel):
