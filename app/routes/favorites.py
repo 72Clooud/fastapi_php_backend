@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from database.dependencis import get_db
 from sqlalchemy.orm import Session
 from schemas.post import PostInput
+from schemas.favorites import FavoritePost
 from auth.auth import auth
 from models.post import Post
 from models.favorites import Favorites
+from typing import List
 
 router = APIRouter(
     tags=['Favorites'],
@@ -14,9 +16,9 @@ router = APIRouter(
 
 @router.post('/')
 def favorites(post: PostInput, db: Session = Depends(get_db), current_user: int = Depends(auth.get_current_user)):
-    post_exist = db.query(Post).filter(Post.url == post.url).first()
+    post_exist = db.query(Post).filter(Post.url == str(post.url)).first()
     if not post_exist:
-        new_post = Post(title=post.title, url=post.url)
+        new_post = Post(title=post.title, url=str(post.url))
         db.add(new_post)
         db.commit()
         db.refresh(new_post)
@@ -39,8 +41,9 @@ def favorites(post: PostInput, db: Session = Depends(get_db), current_user: int 
         return {"message": "Post removed from favorites"}
     
     
-@router.get('/list')
+@router.get('/list', status_code=status.HTTP_200_OK, response_model=List[FavoritePost])
 def get_favorites(db: Session = Depends(get_db), current_user: int = Depends(auth.get_current_user)):
-    is_favorite_empty = db.query(Favorites).filter(Favorites.user_id == current_user.id).all()
-    if not is_favorite_empty:
+    favorite_posts = db.query(Favorites).filter(Favorites.user_id == current_user.id).all()
+    if not favorite_posts:
         return {"message": "Your favorites list is currently empty."}
+    return [{"title": fav.post.title, "url": fav.post.url} for fav in favorite_posts]

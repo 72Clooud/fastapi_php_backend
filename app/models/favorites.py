@@ -13,3 +13,4 @@ class Favorites(Base):
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
     post_id = Column(Integer, ForeignKey("posts.id"), primary_key=True)
     
+    post = relationship("Post")
