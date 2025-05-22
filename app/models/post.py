@@ -12,5 +12,6 @@ class Post(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     url = Column(String, nullable=False, unique=True)
+    urlToImage = Column(String, nullable=False, unique=True)
 
     liked_by = relationship("User", secondary="favorites", back_populates="favorites_posts")
