@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from database.dependencis import get_db
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from schemas.post import PostInput
@@ -46,7 +47,11 @@ async def favorites(post: PostInput, db: AsyncSession = Depends(get_db), current
     
 @router.get('/list', status_code=status.HTTP_200_OK, response_model=List[FavoritePost])
 async def get_favorites(db: AsyncSession = Depends(get_db), current_user: int = Depends(auth.get_current_user)):
-    favorite_posts_result = await db.execute(select(Favorites).where(Favorites.user_id == current_user.id))
+    favorite_posts_result = await db.execute(
+        select(Favorites)
+        .options(selectinload(Favorites.post))
+        .where(Favorites.user_id == current_user.id)
+    )
     favorite_posts = favorite_posts_result.scalars().all()
     if not favorite_posts:
         return {"message": "Your favorites list is currently empty."}

@@ -18,10 +18,10 @@ async def login(user_credentials: LoginRequest, db: AsyncSession = Depends(get_d
     result = await db.execute(select(User).where(User.email == user_credentials.email))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid Credentials")
     if not verify(user_credentials.password, user.password):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                             detail="Invalid Credentials")
     access_token = auth.create_access_token(data={"user_id": user.id})
     token_out = TokenOut(access_token=access_token,
