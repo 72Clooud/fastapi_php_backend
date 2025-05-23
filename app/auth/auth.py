@@ -1,7 +1,8 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from datetime import datetime, timedelta, timezone
 
@@ -37,12 +38,13 @@ class Auth:
             raise credentials_exceptions
         return token_data
     
-    def get_current_user(self, token: HTTPAuthorizationCredentials = Depends(HTTPBearer()), db: Session = Depends(get_db)):
+    async def get_current_user(self, token: HTTPAuthorizationCredentials = Depends(HTTPBearer()), db: AsyncSession= Depends(get_db)):
         credentials_exceptions = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                                detail="Could not validate credentials",
                                                headers={"WWW-Authenticate": "Bearer"})
         token = self.verify_access_token(token.credentials, credentials_exceptions)
-        user = db.query(User).filter(User.id == token.id).first()
+        user_result = await db.execute(select(User).where(User.id == token.id))
+        user = user_result.scalar_one_or_none()
         return user
     
 auth = Auth()

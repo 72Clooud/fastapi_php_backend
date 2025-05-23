@@ -5,10 +5,14 @@ from models.user import User
 from models.post import Post
 from models.favorites import Favorites
 from routes import user, auth, favorites
+from contextlib import asynccontextmanager
 
-db.init()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.init()
+    yield
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "*"
@@ -18,7 +22,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=['POST', 'GET'],
     allow_headers=["*"],
 )
 

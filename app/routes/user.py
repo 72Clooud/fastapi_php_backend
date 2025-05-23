@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from database.dependencis import get_db
 from models.user import User
 from schemas.user import UserCreate, UserOut
@@ -11,16 +12,18 @@ router = APIRouter(
 )
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserOut)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
+async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
 
-    existing_user = db.query(User).filter(User.email == user.email).first()
+    result = await db.execute(select(User).where(User.email == user.email))
+    existing_user = result.scalar_one_or_none()
     if existing_user is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail="User with this email already exist")
-    hashed_password = hash(user.password)
+    hashed_password = await hash(user.password)
     user.password = hashed_password
     new_user = User(**user.model_dump())
     db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    await db.commit()
+    await db.refresh(new_user)
+    
     return new_user

@@ -1,8 +1,7 @@
 from database.database import db
+from sqlalchemy.ext.asyncio import AsyncSession
+from collections.abc import AsyncGenerator
 
-def get_db():
-    session = db.get_session()
-    try:
-        yield session
-    finally:
-        session.close()
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with db.get_session() as session:
+        yield session 
