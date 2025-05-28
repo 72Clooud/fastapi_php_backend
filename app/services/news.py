@@ -4,7 +4,7 @@ from sqlalchemy import select
 from models.news import News 
 from schemas.news import NewsArticle
 from core.config import settings
-from datetime import datetime
+from dateutil import parser 
 
 class NewsApiHandler:
     def __init__(self):
@@ -32,6 +32,7 @@ class NewsApiHandler:
                         description=a.get("description"),
                         author=a.get("author"),
                         url=str(a.get("url")),
+                        publishedAt=parser.isoparse(a.get("publishedAt")),
                         urlToImage=str(a.get("urlToImage")),
                         source_name=a.get("source", {}).get("name", ""),
                         category=category 

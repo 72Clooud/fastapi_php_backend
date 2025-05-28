@@ -8,6 +8,7 @@ class News(Base):
     id = Column(Integer, primary_key=True, index=True, nullable=False)
     title = Column(String, nullable=False)
     author = Column(String)
+    publishedAt = Column(DateTime(timezone=True))
     description = Column(String)
     url = Column(String, unique=True, nullable=False)
     urlToImage = Column(String, nullable=False)
