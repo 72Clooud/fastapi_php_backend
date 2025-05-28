@@ -23,7 +23,9 @@ class NewsArticleOut(BaseModel):
         from_attributes = True
         
 class NewsImageOut(BaseModel):
+    title: str
+    url: str
     urlToImage: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True

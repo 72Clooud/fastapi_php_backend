@@ -35,8 +35,8 @@ async def get_news_by_category(category: str, db: AsyncSession = Depends(get_db)
     return articles
 
 
-@router.get('/news/send/images', response_model=List[NewsImageOut])
+@router.get('/news/send/banner', response_model=List[NewsImageOut])
 async def get_news_images(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(News.urlToImage).limit(30))
-    urls = result.scalars().all()
-    return [NewsImageOut(urlToImage=url) for url in urls]
+    result = await db.execute(select(News.title, News.url, News.urlToImage).limit(30))
+    rows = result.all()
+    return [NewsImageOut(title=title, url=url, urlToImage=urlToImage) for title, url, urlToImage in rows]
