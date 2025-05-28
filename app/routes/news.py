@@ -21,3 +21,14 @@ async def get_news(db: AsyncSession = Depends(get_db)):
                             detail="Not found")
     return all_articles
 
+
+@router.get('/news/{category}', response_model=List[NewsArticleOut])
+async def get_news_by_category(category: str, db: AsyncSession = Depends(get_db)):
+    query = select(News).where(News.category == category)
+    result = await db.execute(query)
+    articles = result.scalars().all()
+
+    if not articles:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    return articles
