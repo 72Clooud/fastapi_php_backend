@@ -11,7 +11,7 @@ from services.news import news_api_handler
 async def lifespan(app: FastAPI):
     await db.init()
     async with db.get_session() as session:
-        await news_api_handler.load_news_to_db(session)
+        await news_api_handler.load_news_to_db_concurrent(session)
     yield
 
 app = FastAPI(lifespan=lifespan)

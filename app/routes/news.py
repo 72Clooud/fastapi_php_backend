@@ -37,7 +37,7 @@ async def get_news_images(db: AsyncSession = Depends(get_db)):
 
 @router.get('/update', response_model=Union[List[NewsArticleOut], Message])
 async def fetch_and_store_new_news(session: AsyncSession = Depends(db.get_session), db: AsyncSession = Depends(get_db)):
-    await news_api_handler.load_news_to_db(session)
+    await news_api_handler.load_news_to_db_concurrent(session)
     
     result = await db.execute(select(News).order_by(desc(News.publishedAt)))
     news_list = result.scalars().all()

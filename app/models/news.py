@@ -10,9 +10,9 @@ class News(Base):
     author = Column(String)
     publishedAt = Column(DateTime(timezone=True))
     description = Column(String)
-    url = Column(String, unique=True, nullable=False)
+    url = Column(String, index=True, unique=True, nullable=False)
     urlToImage = Column(String, nullable=False)
     source_name = Column(String, nullable=False)
-    category = Column(String, nullable=True)
+    category = Column(String, nullable=True, index=True)
     
     favorited_by = relationship("Favorites", back_populates="post")
