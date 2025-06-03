@@ -5,6 +5,7 @@ from core.config import settings
 from dateutil import parser
 import asyncio
 from typing import List, Dict, Any
+from sqlalchemy import select
 
 class NewsApiHandler:
     def __init__(self):
@@ -33,6 +34,15 @@ class NewsApiHandler:
                 continue
 
         return processed
+    
+    async def _get_existing_urls(self, db: AsyncSession, urls: List[str]) -> set:
+        if not urls:
+            return set()
+            
+        result = await db.execute(
+            select(News.url).where(News.url.in_(urls))
+        )
+        return {row[0] for row in result.fetchall()}
 
     async def load_news_to_db_concurrent(self, db: AsyncSession):
         semaphore = asyncio.Semaphore(3)
