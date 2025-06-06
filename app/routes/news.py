@@ -36,13 +36,16 @@ async def get_news_images(db: AsyncSession = Depends(get_db)):
 
 
 @router.get('/update', response_model=Union[List[NewsArticleOut], Message])
-async def fetch_and_store_new_news(session: AsyncSession = Depends(db.get_session), db: AsyncSession = Depends(get_db)):
-    await news_api_handler.load_news_to_db_concurrent(session)
+async def fetch_and_store_random_new_news(session: AsyncSession = Depends(get_db)):
+    await news_api_handler.load_random_unique_news_to_db(session, count=20)
     
-    result = await db.execute(select(News).order_by(desc(News.publishedAt)))
+    result = await session.execute(
+        select(News).order_by(desc(News.id)).limit(20)
+    )
     news_list = result.scalars().all()
+    
     if not news_list:
-        return Message(message="You are up to date !!!")
+        return Message(message="You are up to date and no new random news were added.")
     
     return news_list
 

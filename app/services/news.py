@@ -4,7 +4,7 @@ from models.news import News
 from core.config import settings
 from dateutil import parser
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 from sqlalchemy import select
 
 class NewsApiHandler:
@@ -35,7 +35,7 @@ class NewsApiHandler:
 
         return processed
     
-    async def _get_existing_urls(self, db: AsyncSession, urls: List[str]) -> set:
+    async def _get_existing_urls(self, db: AsyncSession, urls: List[str]) -> Set[str]:
         if not urls:
             return set()
             
@@ -44,24 +44,27 @@ class NewsApiHandler:
         )
         return {row[0] for row in result.fetchall()}
 
+    async def _fetch_articles_from_api(self, category: str, page_size: int = 100, page: int = 1) -> List[Dict[str, Any]]:
+        try:
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(
+                None, 
+                lambda: self.newsapi.get_top_headlines(
+                    language='en', page=page, page_size=page_size, category=category
+                )
+            )
+            articles = data.get('articles', [])
+            return self._filter_and_process_articles(articles, category)
+        except Exception as e:
+            print(f"Error fetching {category} news: {e}")
+            return []
+
     async def load_news_to_db_concurrent(self, db: AsyncSession):
         semaphore = asyncio.Semaphore(3)
         
         async def fetch_category_news(category: str):
             async with semaphore:
-                try:
-                    loop = asyncio.get_event_loop()
-                    data = await loop.run_in_executor(
-                        None, 
-                        lambda: self.newsapi.get_top_headlines(
-                            language='en', page=1, page_size=50, category=category
-                        )
-                    )
-                    articles = data.get('articles', [])
-                    return self._filter_and_process_articles(articles, category)
-                except Exception as e:
-                    print(f"Error fetching {category} news: {e}")
-                    return []
+                return await self._fetch_articles_from_api(category, page_size=50)
         
         tasks = [fetch_category_news(cat) for cat in self.categories]
         results = await asyncio.gather(*tasks)
@@ -102,5 +105,49 @@ class NewsApiHandler:
                 await db.rollback()
         else:
             print("No new articles to add")
+
+    async def load_random_unique_news_to_db(self, db: AsyncSession, count: int = 20):
+        unique_new_articles: List[News] = []
+        fetched_urls: Set[str] = set()
+        pages_to_check = 5
+        articles_per_page = 100
+        
+        for category in self.categories:
+            if len(unique_new_articles) >= count:
+                break
+            for page in range(1, pages_to_check + 1):
+                if len(unique_new_articles) >= count:
+                    break
+                
+                articles = await self._fetch_articles_from_api(category, page_size=articles_per_page, page=page)
+                
+                current_batch_urls = [a['url'] for a in articles]
+                
+                existing_urls = await self._get_existing_urls(db, current_batch_urls)
+                
+                for article_data in articles:
+                    url = article_data['url']
+                    if url not in existing_urls and url not in fetched_urls:
+                        try:
+                            news = News(**article_data)
+                            unique_new_articles.append(news)
+                            fetched_urls.add(url)
+                            if len(unique_new_articles) >= count:
+                                break
+                        except Exception as e:
+                            print(f"Error creating News object for URL {url}: {e}")
+                            continue
+
+        if unique_new_articles:
+            try:
+                db.add_all(unique_new_articles)
+                await db.commit()
+                print(f"Added {len(unique_new_articles)} random unique articles to database")
+            except Exception as e:
+                print(f"Error inserting random unique articles: {e}")
+                await db.rollback()
+        else:
+            print("No new random unique articles to add.")
+
 
 news_api_handler = NewsApiHandler()
