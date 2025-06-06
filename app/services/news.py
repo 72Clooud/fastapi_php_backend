@@ -15,7 +15,7 @@ class NewsApiHandler:
     def _filter_and_process_articles(self, articles: List[Dict[Any, Any]], category: str) -> List[Dict[str, Any]]:
         processed = []
         for a in articles:
-            if not (a.get("description") and a.get("urlToImage") and a.get("url")):
+            if not (a.get("description") and a.get("urlToImage") and a.get("url") and a.get("author")):
                 continue
                 
             try:
