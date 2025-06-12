@@ -4,15 +4,15 @@ from models.news import News
 from core.config import settings
 from dateutil import parser
 import asyncio
-from typing import List, Dict, Any, Set
-from sqlalchemy import select
+from typing import List, Dict, Any
+from sqlalchemy import select, func
 
 class NewsApiHandler:
     def __init__(self):
         self.newsapi = NewsApiClient(api_key=settings.api_secret_key)
         self.categories = ['general', 'technology', 'business', 'science', 'sports', 'health', 'entertainment']
     
-    def _filter_and_process_articles(self, articles: List[Dict[Any, Any]], category: str) -> List[Dict[str, Any]]:
+    def _filter_and_process_articles(self, articles: List[Dict[Any, Any]], category: str, page_num: int) -> List[Dict[str, Any]]:
         processed = []
         for a in articles:
             if not (a.get("description") and a.get("urlToImage") and a.get("url") and a.get("author")):
@@ -27,15 +27,17 @@ class NewsApiHandler:
                     'publishedAt': parser.isoparse(a.get("publishedAt")),
                     'urlToImage': str(a.get("urlToImage")),
                     'source_name': a.get("source", {}).get("name", ""),
-                    'category': category
+                    'category': category,
+                    'page': page_num
                 }
                 processed.append(processed_article)
             except (ValueError, TypeError):
                 continue
 
         return processed
+
     
-    async def _get_existing_urls(self, db: AsyncSession, urls: List[str]) -> Set[str]:
+    async def _get_existing_urls(self, db: AsyncSession, urls: List[str]) -> set:
         if not urls:
             return set()
             
@@ -43,28 +45,32 @@ class NewsApiHandler:
             select(News.url).where(News.url.in_(urls))
         )
         return {row[0] for row in result.fetchall()}
-
-    async def _fetch_articles_from_api(self, category: str, page_size: int = 100, page: int = 1) -> List[Dict[str, Any]]:
-        try:
-            loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(
-                None, 
-                lambda: self.newsapi.get_top_headlines(
-                    language='en', page=page, page_size=page_size, category=category
-                )
-            )
-            articles = data.get('articles', [])
-            return self._filter_and_process_articles(articles, category)
-        except Exception as e:
-            print(f"Error fetching {category} news: {e}")
-            return []
+    
+    async def _get_current_page_from_db(self, db: AsyncSession) -> int:
+        result = await db.execute(select(func.max(News.page)))
+        max_page = result.scalar_one_or_none()
+        return (max_page if max_page is not None else 0) + 1
 
     async def load_news_to_db_concurrent(self, db: AsyncSession):
+        next_page_to_fetch = await self._get_current_page_from_db(db)
+        
         semaphore = asyncio.Semaphore(3)
         
         async def fetch_category_news(category: str):
             async with semaphore:
-                return await self._fetch_articles_from_api(category, page_size=50)
+                try:
+                    loop = asyncio.get_event_loop()
+                    data = await loop.run_in_executor(
+                        None, 
+                        lambda: self.newsapi.get_top_headlines(
+                            language='en', page=next_page_to_fetch, page_size=10, category=category
+                        )
+                    )
+                    articles = data.get('articles', [])
+                    return self._filter_and_process_articles(articles, category, next_page_to_fetch)
+                except Exception as e:
+                    print(f"Error fetching {category} news: {e}")
+                    return []
         
         tasks = [fetch_category_news(cat) for cat in self.categories]
         results = await asyncio.gather(*tasks)
@@ -105,49 +111,5 @@ class NewsApiHandler:
                 await db.rollback()
         else:
             print("No new articles to add")
-
-    async def load_random_unique_news_to_db(self, db: AsyncSession, count: int = 20):
-        unique_new_articles: List[News] = []
-        fetched_urls: Set[str] = set()
-        pages_to_check = 5
-        articles_per_page = 100
-        
-        for category in self.categories:
-            if len(unique_new_articles) >= count:
-                break
-            for page in range(1, pages_to_check + 1):
-                if len(unique_new_articles) >= count:
-                    break
-                
-                articles = await self._fetch_articles_from_api(category, page_size=articles_per_page, page=page)
-                
-                current_batch_urls = [a['url'] for a in articles]
-                
-                existing_urls = await self._get_existing_urls(db, current_batch_urls)
-                
-                for article_data in articles:
-                    url = article_data['url']
-                    if url not in existing_urls and url not in fetched_urls:
-                        try:
-                            news = News(**article_data)
-                            unique_new_articles.append(news)
-                            fetched_urls.add(url)
-                            if len(unique_new_articles) >= count:
-                                break
-                        except Exception as e:
-                            print(f"Error creating News object for URL {url}: {e}")
-                            continue
-
-        if unique_new_articles:
-            try:
-                db.add_all(unique_new_articles)
-                await db.commit()
-                print(f"Added {len(unique_new_articles)} random unique articles to database")
-            except Exception as e:
-                print(f"Error inserting random unique articles: {e}")
-                await db.rollback()
-        else:
-            print("No new random unique articles to add.")
-
 
 news_api_handler = NewsApiHandler()

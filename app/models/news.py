@@ -14,5 +14,6 @@ class News(Base):
     urlToImage = Column(String, nullable=False)
     source_name = Column(String, nullable=False)
     category = Column(String, nullable=True, index=True)
+    page = Column(Integer)
     
     favorited_by = relationship("Favorites", back_populates="post")
