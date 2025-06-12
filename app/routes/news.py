@@ -17,7 +17,7 @@ router = APIRouter(
 
 @router.get('/', response_model=List[NewsArticleOut])
 async def get_news(db: AsyncSession = Depends(get_db)):
-    all_articles_result = await db.execute(select(News))
+    all_articles_result = await db.execute(select(News).order_by(desc(News.page)).limit(300))
     all_articles = all_articles_result.scalars().all()
     if not all_articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -30,7 +30,8 @@ async def get_news_images(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(News.title, News.url, News.urlToImage).limit(30))
     rows = result.all()
     if not rows:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Not found")
     
     return [NewsImageOut(title=title, url=url, urlToImage=urlToImage) for title, url, urlToImage in rows]
 
@@ -38,7 +39,7 @@ async def get_news_images(db: AsyncSession = Depends(get_db)):
 @router.get('/update', response_model=List[NewsArticleOut])
 async def get_updated_news(db: AsyncSession = Depends(get_db)):
     await news_api_handler.load_news_to_db_concurrent(db)
-    all_articles_result = await db.execute(select(News).order_by(desc(News.page)))
+    all_articles_result = await db.execute(select(News).order_by(desc(News.page)).limit(300))
     all_articles = all_articles_result.scalars().all()
     if not all_articles:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -48,9 +49,10 @@ async def get_updated_news(db: AsyncSession = Depends(get_db)):
 
 @router.get('/{category}', response_model=List[NewsArticleOut])
 async def get_news_by_category(category: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(News).where(News.category == category).order_by(desc(News.publishedAt)))
+    result = await db.execute(select(News).where(News.category == category).order_by(desc(News.page)))
     articles = result.scalars().all()
     if not articles:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Not found")
 
     return articles
